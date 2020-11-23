@@ -131,11 +131,9 @@
   (if (empty? name-list)
       game-data
       (let ([current-game (hash-ref game-data (car name-list))])
-        (let ([no-connections (and (false? (hash-ref current-game "1-connected"))
-                                   (or (null? (hash-ref current-game "2-connected")) (false? (hash-ref current-game "2-connected"))))])
-          (if (or no-connections (check-timeout current-game))
-              (remove-stale-games (destroy-game game-data (car name-list)) (cdr name-list))
-              (remove-stale-games game-data (cdr name-list)))))))
+        (if (check-timeout current-game)
+            (remove-stale-games (destroy-game game-data (car name-list)) (cdr name-list))
+            (remove-stale-games game-data (cdr name-list))))))
 
 ; returns updated game data
 (define (check-message channel-msg game-data)
