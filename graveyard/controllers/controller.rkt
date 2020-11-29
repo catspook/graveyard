@@ -29,7 +29,8 @@
          (prefix-in t: "../views/tile.rkt")
          (prefix-in i: "../views/images.rkt")
          (prefix-in v: "../views/view.rkt")
-         (prefix-in ev: "../views/end_view.rkt"))
+         (prefix-in ev: "../views/end_view.rkt")
+         (prefix-in nc: "../networking/src/game-converter.rkt"))
 
 (define init-turn
   (g:gen-init-turn "First Necromancer: pick a corpse to raise!"))
@@ -38,6 +39,17 @@
 
 (define computer-player-channel (make-channel))
 
+(define remote-player-channel (make-channel))
+
+; KEEPALIVE
+(define (start-keepalive game-name game-pwd client-id)
+  (define (send-keepalive)
+    (define resp-msg (nc:connect-to-server (string-join (list "A" client-id game-name game-pwd) "")))
+    ; keep track of if server is still responding. Response should just be "A"
+    (sleep 10)
+    (send-keepalive))
+  (send-keepalive))
+; END KEEPALIVE
 
 (define tile-list
   (map (lambda (piece coords)
@@ -115,14 +127,14 @@
                               [src-coords location-coords]
                               [message (move-message state location-coords)])))
 
-
 (define (wrong-player state)
   (event-handled (struct-copy g:turn state
-                              [message "Selected other necromancers piece."])))
+                              [message "Error! Selected other necromancer's piece."])))
 
 
 (define (handle-tile-click state location-coords)
   (cond
+    ((list? location-coords) (handle-tile-click (handle-tile-click state (car location-coords)) (cadr location-coords)))
     ((g:coords-selected? state) (finish-move-turn state location-coords))
     ((g:location-hidden? location-coords (g:turn-board state))
      (raise-location state location-coords))
@@ -140,7 +152,6 @@
   (send ev:end-game-dialog show #t)
   (cleanup-thunk))
 
-
 (define (clear-player-channel)
   (when (channel-try-get human-player-channel)
     (clear-player-channel)))
@@ -154,6 +165,27 @@
   (channel-put computer-player-channel state)
   (channel-get computer-player-channel))
 
+; REQUEST UPDATE
+(define (exec-request-update game-name game-pwd client-id id name pwd move-from move-to)
+  (if (and (equal? game-name name) (equal? game-pwd pwd) (equal? client-id id))
+      (let ([list-move-from (string-split move-from "")]
+            [list-move-to (string-split move-from "")])
+        (list (position (string->number (cadr list-move-from)) (string->number (caddr list-move-from)))
+              (position (string->number (cadr list-move-to)) (string->number (caddr list-move-to)))))
+      (begin (nc:connect-to-server "P") null))) ; disconnect, end game
+
+(define (request-update game-name game-pwd client-id)
+  (define resp-msg (nc:connect-to-server (string-join (list "B" client-id game-name game-pwd) "")))
+  (cond
+    [(regexp-match-exact? #px"M") null] ; disconnect, end game
+    [(regexp-match-exact? #px"P") null] ; disconnect, end game
+    [(regexp-match-exact? #px"D:[1 | 2]:([A-Za-z0-9]){1,20}:([A-Za-z0-9]){1,20}:[0-8][0-4]:[0-8][0-4]:[1 | 2]")
+     (match (regexp-split #px":" resp-msg) [(list code id name pwd move-from move-to who-moved-last) 
+                                            (if (not (equal? id who-moved-last))
+                                                (exec-request-update game-name game-pwd client-id id name pwd move-from move-to who-moved-last) 
+                                                (begin (sleep 2) (request-update game-name game-pwd client-id)))])]
+    [else (begin (nc:connect-to-server "M") null)])) ; disconnect, end game
+; END REQUEST UPDATE
 
 (define (event-loop init-state player-choice-fn)
   (let loop ([state init-state])
@@ -202,3 +234,107 @@
                  (lambda ()
                    (channel-put computer-player-channel
                                 #f))))))
+
+; HAS OTHER PLAYER JOINED?
+(define (exec-other-player-joined? game-name game-pwd name pwd)
+  (if (and (equal? game-name name) (equal? game-pwd pwd))
+      #t
+      (begin (nc:connect-to-server "P")
+             #f)))
+
+(define (other-player-joined? game-name game-pwd client-id)
+  (define resp-msg (nc:connect-to-server (string-join (list "K" client-id game-name game-pwd) "")))
+  (cond
+    [(regexp-match-exact? #px"M") #f] ; invalid msg - disconnect, end game
+    [(regexp-match-exact? #px"P") #f] ; invalid credentials - disconnect, end game
+    [(regexp-match-exact? #px"J") #f] ; forward leave - disconnect, end game
+    [(regexp-match-exact? #px"H:1:([A-Za-z0-9]){1,20}:([A-Za-z0-9]){1,20}")
+     (match (regexp-split #px":" resp-msg) [(list code id name pwd) (exec-create-game game-name game-pwd name pwd)])]
+    [else (begin (nc:connect-to-server "M") #f)])) ; disconnect, end game
+
+; REMOTE PLAYER CREATE GAME
+(define (exec-create-game game-name game-pwd client-id id name pwd)
+  (if (and (equal? name game-name) (equal? pwd game-pwd) (equal? id client-id))
+      #t
+      (begin (nc:connect-to-server "P")
+             #f)))
+
+(define (create-game game-name game-pwd client-id init-state) 
+  (define resp-msg (nc:connect-to-server (make-board-string game-name game-pwd (g:turn-board init-state))))
+  (cond
+    [(regexp-match-exact? #px"M") #f] ; invalid msg - disconnect, end game
+    [(regexp-match-exact? #px"Q") #f] ; name is taken - disconnect, end game
+    [(regexp-match-exact? #px"T") #f] ; too many players - disconnect, end game
+    [(regexp-match-exact? #px"F:1:([A-Za-z0-9]){1,20}:([A-Za-z0-9]){1,20}")
+     (match (regexp-split #px":" resp-msg) [(list code id name pwd) (exec-create-game game-name game-pwd client-id id name pwd)])]
+    [else (begin (nc:connect-to-server "M") #f)])) ; disconnect, end game
+
+(define (remote-player-create-init-turn init-state game-name game-pwd client-id)
+  (if (and (create-game game-name game-pwd client-id init-state)
+           (other-player-joined? game-name game-pwd client-id))
+      (let* ([finished-first-turn
+               (handle-tile-click init-state
+                                  (channel-get human-player-channel))]
+             [remote-player (g:turn-player finished-first-turn)])
+        (event-loop finished-first-turn 
+                    (lambda (state)
+                      (if (eq? (g:turn-player state) remote-player)
+                          (get-remote-player-choice game-name game-pwd client-id)
+                          (get-human-choice))))))
+  null) ; disconnect, end game
+
+(define (remote-player-create game-name game-pwd)
+  (thread
+    (lambda ()
+      (start-keepalive game-name game-pwd "1")))
+  (thread
+    (lambda ()
+      (player-won (remote-player-create-init-turn init-turn game-name game-pwd "1")
+                  (lambda ()
+                    (void))))))
+
+; REMOTE PLAYER JOIN GAME
+(define (exec-join-game game-name game-pwd name pwd pieces player-pieces)
+  (if (and (equal? name game-name) (equal? pwd game-pwd))
+      (g:turn (nc:make-board pieces player-pieces) 
+            "Undecided"
+            "AAAAAAAAAAAAAAAHHHHHHH"
+            #t
+            r:none-role
+            b:none-position
+            #f)
+      (begin (nc:connect-to-server "P")
+             null))
+
+(define (join-game game-name game-pwd client-id) 
+  (define resp-msg (nc:connect-to-server (string-join (list "G" client-id game-name game-pwd) "")))
+  (cond
+    [(regexp-match-exact? #px"M") null] ; invalid code - disconnect, end game
+    [(regexp-match-exact? #px"P") null] ; invalid credentials - disconnect, end game
+    [(regexp-match-exact? #px"R") null] ; too many players - disconnect, end game
+    [(regexp-match-exact? #px"H:2:([A-Za-z0-9]){1,20}:([A-Za-z0-9]){1,20}:([A-Z]){32}:([O | P]){32}")
+     (match (regexp-split #px":" resp-msg) [(list code id name pwd pieces player-pieces) (exec-join-game game-name game-pwd name pwd pieces player-pieces)])]
+    [else (begin (nc:connect-to-server "M") null)])) ; disconnect, end game
+
+(define (remote-player-join-init-turn game-name game-pwd client-id)
+  (define init-state (join-game game-name game-pwd client-id))
+  (if (not (null? init-state))
+      (let* ([finished-first-turn
+               (handle-tile-click init-state (get-remote-player-choice game-name game-pwd client-id))]
+             [local-player (g:turn-player finished-first-turn)])
+        (event-loop finished-first-turn 
+                    (lambda (state)
+                      (if (eq? (g:turn-player state) local-player)
+                          (get-human-choice)
+                          (get-remote-player-choice game-name game-pwd client-id)))))
+      null)) ; tell player game could not be entered
+
+(define (remote-player-join game-name game-pwd)
+  (thread
+    (lambda ()
+      (start-keepalive game-name game-pwd "2")))
+  (thread
+    (lambda ()
+      (player-won (remote-player-join-init-turn game-name game-pwd "2")
+                  (lambda ()
+                    (void))))))
