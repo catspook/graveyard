@@ -4,18 +4,19 @@
          make-board
          connect-to-server)
 
-(require (only-in racket/string
+(require racket/tcp 
+         (only-in racket/string
                   string-join)
          (prefix-in b: "../../models/board.rkt")
          (prefix-in r: "../../models/roles.rkt")
          (prefix-in g: "../../models/graveyard.rkt"))
 
 (define (connect-to-server msg)
-  (define-values (in out) (tcp-connect localhost 6413))
+  (define-values (in out) (tcp-connect "localhost" 6413))
   (display msg out)
+  (close-output-port out)
   (define resp-msg (read-line in))
   (close-input-port in)
-  (close-output-port out)
   resp-msg)
 
 (define role-to-string (hash r:leader "L" r:advisor "V" r:elephant "Z" r:chariot "G" r:horse "S" r:cannon "W" r:pawn "P"))
