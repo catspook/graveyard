@@ -15,7 +15,7 @@ Graveyard now allows you to play remote games.
 - Click the executable again to open a second game and choose =Remote Game=
 - Enter a game name, password, and host location, and click =Create=
 - Have a friend join the game by choosing =Remote Game= and entering the same game name, password, and host! 
-If your OS does not allow you to open two games at once (for example, OS X), navigate to =graveyard/graveyard/views= and enter =racket start_view.rkt=.
+If your OS does not allow you to open two games at once, open the terminal and navigate to =graveyard/graveyard/views= and enter =racket start_view.rkt=.
 
 *** Code has been added to:
 - Server: =graveyard/graveyard/networking/src/server.rkt=
@@ -26,6 +26,7 @@ If your OS does not allow you to open two games at once (for example, OS X), nav
 *** Considerations:
 - Remote play is sensative towards inaccurate moves. Too many inaccurate clicks will result in game malfunction. Study the valid moves below to ensure optimal gameplay.
 - The networking update somehow broke single and multiplayer mode. Pull [[https://github.com/thea-leake/graveyard][thea-leake]]\'s original repo for those.
+- This is has been tested on Unix and OS X, but not Windows.
 
 -------------
 
