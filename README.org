@@ -7,16 +7,25 @@
 
 ** Networking Update
 
-Graveyard now allows you to play remote games. Make sure to follow the build instructions below, then click the executable and choose Start Server, then click the executable again to open a second game and choose Remote Game -> Create.
-If your OS does not allow you to open two games at once (for example, OS X), navigate to =graveyard//graveyard//views= and enter =racket start_view.rkt=.
+Graveyard now allows you to play remote games. 
+
+***To play a remote game:
+- Download Racket and build according to the instructions below
+- Click the executable and choose =Start Server=
+- Click the executable again to open a second game and choose =Remote Game=
+- Enter a game name, password, and host location, and click =Create=
+- Have a friend join the game by choosing =Remote Game= and entering the same game name, password, and host! 
+If your OS does not allow you to open two games at once (for example, OS X), navigate to =graveyard/graveyard/views= and enter =racket start_view.rkt=.
 
 Code has been added to:
-- Server: =graveyard//graveyard//networking//src//server.rkt=
-- Helper Functions: =graveyard//graveyard//networking//src//game-converter.rkt=
-- Client: =graveyard//graveyard//controllers//controller.rkt=
-- Various GUIs have been added to =graveyard//graveyard//views=
+- Server: =graveyard/graveyard/networking/src/server.rkt=
+- Helper Functions: =graveyard/graveyard/networking/src/game-converter.rkt=
+- Client: =graveyard/graveyard/controllers/controller.rkt=
+- Various GUIs have been added to =graveyard/graveyard/views=
 
-Also, the networking update somehow broke single and multiplayer mode, and I have not had time to debug why. Pull [[https://github.com/thea-leake/graveyard][thea-leake]]\'s original repo for those.
+***Considerations:
+- Remote play is sensative towards inaccurate moves. Too many inaccurate clicks will result in game malfunction. Study the valid moves below to ensure optimal gameplay.
+- The networking update somehow broke single and multiplayer mode. Pull [[https://github.com/thea-leake/graveyard][thea-leake]]\'s original repo for those.
 
 -------------
 
