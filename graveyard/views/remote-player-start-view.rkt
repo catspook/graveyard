@@ -69,4 +69,4 @@
        [callback (lambda (button event)
                    (send remote-start-dialog show #f)
                    (send v:game-window show #t)
-                   (ctrl:remote-player-join (send name-entry-field get-value) (send pwd-entry-field get-value)))]))
+                   (ctrl:remote-player-join (send name-entry-field get-value) (send pwd-entry-field get-value) (send host-entry-field get-value)))]))
