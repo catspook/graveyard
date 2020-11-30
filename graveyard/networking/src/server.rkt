@@ -18,7 +18,7 @@
 
 (define (set-update-time game-data id name)
   (define game (hash-ref game-data name))
-  (hash-set game-data name (hash-set game (string-join (list id "-lastl-updated") "") (current-seconds))))
+  (hash-set game-data name (hash-set game (string-join (list id "-last-updated") "") (current-seconds))))
 
 (define (op-keepalive game-data id name pwd resp-msg)
   (resp-msg "A") ; op-keepalive
@@ -32,8 +32,11 @@
 
 (define (op-update game-data id name pwd move-from move-to resp-msg)
   (define game-to-update (hash-ref game-data name))
-  (resp-msg (string-join (list "D" id name pwd move-from move-to) ":")) ; op-forward-update
-  (set-update-time (hash-set game-data name (hash-set* game-to-update "last-move" (list move-from move-to) "who-moved-last" id)) id name))
+  (if (equal? (hash-ref (hash-ref game-data name) "last-move") (list move-from move-to))
+      (begin (resp-msg "A")
+             (set-update-time game-data id name))
+      (begin (resp-msg (string-join (list "D" id name pwd move-from move-to id) ":")) ; op-forward-update
+             (set-update-time (hash-set game-data name (hash-set* game-to-update "last-move" (list move-from move-to) "who-moved-last" id)) id name))))
 
 (define (op-create game-data id name pwd pieces piece-to-player resp-msg)
   (println "creating a game...")
@@ -77,9 +80,9 @@
   (println game-data)
   (println name)
   (println pwd)
-  (define stuff (and (hash-has-key? game-data name) (equal? (hash-ref (hash-ref game-data name) "pwd") pwd)))
-  (println stuff)
-  stuff)
+  (define game-has-key (and (hash-has-key? game-data name) (equal? (hash-ref (hash-ref game-data name) "pwd") pwd)))
+  (println game-has-key)
+  game-has-key)
 
 (define (exec-opcode game-data code id name pwd msg1 msg2 resp-msg)
   (println "structure correct!")

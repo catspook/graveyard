@@ -109,6 +109,7 @@
   (cond
     [(regexp-match-exact? #px"M" resp-msg) null] ; disconnect, end game
     [(regexp-match-exact? #px"P" resp-msg) null] ; disconnect, end game
+    [(regexp-match-exact? #px"A" resp-msg) #t]
     [(regexp-match-exact? #px"D:[1 | 2]:([A-Za-z0-9]){1,20}:([A-Za-z0-9]){1,20}:[0-8][0-4]:[0-8][0-4]:[1 | 2]" resp-msg)
      (match (regexp-split #px":" resp-msg) [(list code id name pwd move-from move-to who-moved-last) (exec-send-update game-name game-pwd client-id id name pwd)])]
     [else (begin (nc:connect-to-server "M") null)])) ; disconnect, end game
@@ -163,9 +164,12 @@
 
 (define (handle-tile-click state location-coords [game-name #f] [game-pwd #f] [client-id #f])
   (println "handle tile click")
+  (println location-coords)
   (cond
-    ((list? location-coords) (handle-tile-click (handle-tile-click state (car location-coords) game-name game-pwd client-id)
-                                                (cadr location-coords) game-name game-pwd client-id))
+    ((list? location-coords) (if (equal? (car location-coords) (cadr location-coords))
+                                 (handle-tile-click state (car location-coords) game-name game-pwd client-id)
+                                 (handle-tile-click (handle-tile-click state (car location-coords) game-name game-pwd client-id)
+                                                    (cadr location-coords) game-name game-pwd client-id)))
     ((g:coords-selected? state) (finish-move-turn state location-coords game-name game-pwd client-id))
     ((g:location-hidden? location-coords (g:turn-board state))
      (raise-location state location-coords game-name game-pwd client-id))
@@ -207,20 +211,23 @@
 
 (define (get-remote-player-choice game-name game-pwd client-id)
   (define resp-msg (nc:connect-to-server (string-join (list "B" client-id game-name game-pwd) ":")))
+  (println "in get-remote-choice")
+  (println resp-msg)
   (cond
     [(regexp-match-exact? #px"M" resp-msg) null] ; disconnect, end game
     [(regexp-match-exact? #px"P" resp-msg) null] ; disconnect, end game
     [(regexp-match-exact? #px"D:[1 | 2]:([A-Za-z0-9]){1,20}:([A-Za-z0-9]){1,20}:[0-8][0-4]:[0-8][0-4]:[1 | 2]" resp-msg)
      (match (regexp-split #px":" resp-msg) [(list code id name pwd move-from move-to who-moved-last) 
-                                            (if (not (equal? id who-moved-last))
-                                                (exec-request-update game-name game-pwd client-id id name pwd move-from move-to) 
-                                                (begin (sleep 2) (get-remote-player-choice game-name game-pwd client-id)))])]
+                                            (if (equal? client-id who-moved-last)
+                                                (begin (sleep 2) (get-remote-player-choice game-name game-pwd client-id))
+                                                (exec-request-update game-name game-pwd client-id id name pwd move-from move-to))])]
     [else (begin (nc:connect-to-server "M") null)])) ; disconnect, end game
 ; END REQUEST UPDATE
 
 (define (event-loop init-state player-choice-fn [game-name #f] [game-pwd #f] [client-id #f])
   (println "event loop")
   (let loop ([state init-state])
+    (println "in event loop loop")
     (cond
       ((g:player-lost? state)
        (r:toggle-player (g:turn-player state)))         ;; toggle to return winning player
