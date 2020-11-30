@@ -25,8 +25,8 @@
          (prefix-in r: "../../models/roles.rkt")
          (prefix-in g: "../../models/graveyard.rkt"))
 
-(define (connect-to-server msg)
-  (define-values (in out) (tcp-connect "localhost" 6413))
+(define (connect-to-server msg [host "localhost"])
+  (define-values (in out) (tcp-connect host 6413))
   (display msg out)
   (close-output-port out)
   (define resp-msg (read-line in))

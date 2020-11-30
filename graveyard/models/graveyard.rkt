@@ -479,7 +479,8 @@
                  [message (role-at-location coords
                                             (turn-board state))]
                  [src-coords b:none-position]
-                 [first? #f])))
+                 [first? #f]
+                 [valid? #t])))
 
 
 (: player-move (-> turn b:Position turn))

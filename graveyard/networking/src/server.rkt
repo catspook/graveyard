@@ -14,6 +14,9 @@
 
 #lang racket/base
 
+(provide start-server
+         kill-all-server-threads)
+
 (require racket/tcp
          racket/string
          racket/list
@@ -170,8 +173,6 @@
     (loop new-game-data))
   (loop orig-game-data))
 
-(define history-thread (thread history))
-
 (define (accept-and-handle listener)
   (define-values (in out) (tcp-accept listener))
   (define (response msg)
@@ -189,10 +190,7 @@
     (garbage-loop))
   (garbage-loop))
 
-(define garbage-collect-thread (thread garbage-collect))
-
 ; SERVER
-; add a timeout
 (define (parent)
   (define listener (tcp-listen 6413 2 #t)) ;port 6413, max 2 connections waiting
   (define (loop)
@@ -201,12 +199,11 @@
     (loop))
   (thread loop))
 
-(define parent-thread (parent))
+(define (kill-all-server-threads thread-list)
+  (map kill-thread thread-list))
 
-(define (kill-all-server-threads)
-  (lambda ()
-    (kill-thread history-thread)
-    (kill-thread parent-thread)))
-
-; as soon as this module is loaded, these start
-; something outside of this would call kill-all-server-threads
+(define (start-server)
+  (define parent-thread (parent))
+  (define garbage-collect-thread (thread garbage-collect))
+  (define history-thread (thread history))
+  (list parent-thread garbage-collect-thread history-thread))

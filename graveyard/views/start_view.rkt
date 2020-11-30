@@ -23,7 +23,9 @@
          (prefix-in v: "view.rkt")
          (prefix-in ctrl: "../controllers/controller.rkt")
          (prefix-in m: "single-player-start-view.rkt")
-         (prefix-in r: "remote-player-start-view.rkt"))
+         (prefix-in r: "remote-player-start-view.rkt")
+         (prefix-in s: "../networking/src/server.rkt")
+         (prefix-in sv: "server-view.rkt"))
 
 
 (define start-game-dialog
@@ -59,6 +61,15 @@
        [label "Remote Player"]
        [callback (lambda (button event)
                    (send r:remote-start-dialog show #t)
+                   (send start-game-dialog show #f))]))
+
+(define start-server-button
+  (new button%
+       [parent start-game-dialog]
+       [label "Start Server"]
+       [callback (lambda (button event)
+                   (sv:set-server-threads! (s:start-server))
+                   (send sv:start-server-dialogue show #t)
                    (send start-game-dialog show #f))]))
 
 (send start-game-dialog show #t)
