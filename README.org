@@ -22,6 +22,7 @@ If your OS does not allow you to open two games at once, open the terminal and n
 - Helper Functions: =graveyard/graveyard/networking/src/game-converter.rkt=
 - Client: =graveyard/graveyard/controllers/controller.rkt=
 - Various GUIs have been added to =graveyard/graveyard/views=
+This [[https://github.com/thea-leake/graveyard/compare/main...catspook:main][comparison]] shows the changes made in more detail.
 
 *** Considerations:
 - Remote play is sensative towards inaccurate moves. Too many inaccurate clicks will result in game malfunction. Study the valid moves below to ensure optimal gameplay.
