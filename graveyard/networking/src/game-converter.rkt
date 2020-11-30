@@ -25,6 +25,10 @@
          (prefix-in r: "../../models/roles.rkt")
          (prefix-in g: "../../models/graveyard.rkt"))
 
+; CONNECT TO SERVER
+
+; sends a message to server and returns response.
+; "localhost" is the default host, if none other is specified.
 (define (connect-to-server msg [host "localhost"])
   (define-values (in out) (tcp-connect host 6413))
   (display msg out)
@@ -33,15 +37,13 @@
   (close-input-port in)
   resp-msg)
 
+; CONVERT BOARD <--> MESSAGE STRING
+
 (define role-to-string (hash r:leader "L" r:advisor "V" r:elephant "Z" r:chariot "G" r:horse "S" r:cannon "W" r:pawn "P"))
 (define string-to-role (hash "L" r:leader "V" r:advisor "Z" r:elephant "G" r:chariot "S" r:horse "W" r:cannon "P" r:pawn))
 
 (define string-to-player (hash "O" "Orange" "P" "Purple"))
 (define player-to-string (hash "Orange" "O" "Purple" "P"))
-
-; MAKE BOARD
-; join game function gets ok from server, and calls function to init a game.
-; this is how that function creates a board.
 
 (define (make-cell zipped-piece)
   (r:cell (hash-ref string-to-player (cadr zipped-piece)) ; gets second element in a list
@@ -49,14 +51,15 @@
         (hash-ref string-to-role (car zipped-piece)) ; first elem in a list
         #f))
 
-(define (make-board pieces piece-player) ; pieces/piece-player are from server, after return string has been parsed and code/id/name/pwd verified.
+; returns a board from a string of pieces and players sent by the server.
+; pieces is a string where each letter represents a tile
+; piece-player is a string where each letter represents which player "owns" that tile
+(define (make-board pieces piece-player)
   (define zipped-pieces (map list (map string (string->list pieces)) (map string (string->list piece-player))))
   (map make-cell zipped-pieces))
 
-; MAKE BOARD STRING
-; called by create-game function to send to server
-
-(define (make-board-string game-name game-pwd board)  ; name/pwd are input from user, board/whos-going-first are from game creation 
+; returns a message to be sent to the server which includes a string encoding of the game board.
+(define (make-board-string game-name game-pwd board) 
   (define piece-string (string-join (map (lambda (cell) (hash-ref role-to-string (r:cell-role cell))) board) ""))
   (define piece-player-string (string-join (map (lambda (cell) (hash-ref player-to-string (r:cell-player cell))) board) ""))
   (string-join (list "E:1" game-name game-pwd piece-string piece-player-string) ":"))
