@@ -16,7 +16,9 @@
 
 
 (provide single-player
-         multi-player)
+         multi-player
+         remote-player-join
+         remote-player-create)
 
 (require racket/tcp 
          racket/match

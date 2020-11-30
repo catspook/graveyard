@@ -21,7 +21,8 @@
                   send)
          (only-in racket/gui/base
                   dialog%
-                  button%)
+                  button%
+                  text-field%)
          (prefix-in v: "view.rkt")
          (prefix-in ctrl: "../controllers/controller.rkt"))
 
@@ -44,7 +45,7 @@
   (new text-field%
        [label "Game Password:"]
        [parent remote-start-dialog]
-       [style 'password]))
+       [style (list 'password 'single)]))
 
 (define create-button
   (new button%
