@@ -22,12 +22,13 @@
                   button%)
          (prefix-in v: "view.rkt")
          (prefix-in ctrl: "../controllers/controller.rkt")
-         (prefix-in m: "single-player-start-view.rkt"))
+         (prefix-in m: "single-player-start-view.rkt")
+         (prefix-in r: "remote-player-start-view.rkt"))
 
 
 (define start-game-dialog
   (new dialog%
-       [label "Choose single or multiplayer"]
+       [label "Choose single, multiplayer, or remote"]
        [parent #f]
        [style '(close-button)]
        [enabled #t]
@@ -51,5 +52,13 @@
                    (send start-game-dialog show #f)
                    (send v:game-window show #t)
                    (ctrl:multi-player))]))
+
+(define remote-player-button
+  (new button%
+       [parent start-game-dialog]
+       [label "Remote Player"]
+       [callback (lambda (button event)
+                   (send r:remote-start-dialog show #t)
+                   (send start-game-dialog show #f))]))
 
 (send start-game-dialog show #t)
