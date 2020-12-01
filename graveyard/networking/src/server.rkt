@@ -151,11 +151,11 @@
 ; for garbage collection: if it's more than 10 seconds since a client communicated with
 ;  server, the server considers that client inacitve and kills the game.
 (define (check-timeout current-game)
-  (define 1-timeout? (>= (- (current-seconds) (hash-ref current-game "1-last-updated")) 60))
+  (define 1-timeout? (>= (- (current-seconds) (hash-ref current-game "1-last-updated")) 10))
   (define 2-time (hash-ref current-game "2-last-updated"))
   (if (null? 2-time)
       1-timeout?
-      (or 1-timeout? (>= (- (current-seconds) 2-time) 60))))
+      (or 1-timeout? (>= (- (current-seconds) 2-time) 10))))
 
 ; garbage collection for inactive games.
 (define (remove-stale-games game-data name-list)

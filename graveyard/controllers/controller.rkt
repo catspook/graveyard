@@ -112,7 +112,7 @@
 (define (exec-send-update game-name game-pwd client-id id name pwd)
   (if (and (equal? game-name name) (equal? game-pwd pwd) (equal? client-id id))
       #t
-      (begin (nc:connect-to-server "P" (host-param)) 
+      (begin (nc:connect-to-server (string-join (list "P" client-id game-name game-pwd) ":") (host-param)) 
              (err))))
 
 ; sends an update message to the server and checks the response to ensure it's valid.
@@ -132,7 +132,7 @@
     [(regexp-match-exact? #px"D:[1 | 2]:([A-Za-z0-9]){1,20}:([A-Za-z0-9]){1,20}:[0-8][0-4]:[0-8][0-4]:[1 | 2]" resp-msg)
      (match (regexp-split #px":" resp-msg) [(list code id name pwd move-from move-to who-moved-last) 
                                             (exec-send-update game-name game-pwd client-id id name pwd)])]
-    [else (begin (nc:connect-to-server "M" (host-param)) (err))])) ; send error: invalid code or message structure 
+    [else (begin (nc:connect-to-server (string-join (list "M" client-id game-name game-pwd) ":") (host-param)) (err))])) ; send error: invalid code or message structure 
 ; END SEND UPDATE
 
 ; FINISH TURN
@@ -239,7 +239,7 @@
             [list-move-to (string-split move-to "")])
         (list (b:position (string->number (cadr list-move-from)) (string->number (caddr list-move-from)))
               (b:position (string->number (cadr list-move-to)) (string->number (caddr list-move-to)))))
-      (begin (nc:connect-to-server "P" (host-param)) (err)))) ; disconnect, end game
+      (begin (nc:connect-to-server (string-join (list "P" client-id game-name game-pwd) ":")  (host-param)) (err)))) ; disconnect, end game
 
 ; retrieves an update from the server; recurses if server hasn't had an update yet.
 (define (get-remote-player-choice game-name game-pwd client-id)
@@ -247,14 +247,14 @@
   (println "in get-remote-choice")
   (println resp-msg)
   (cond
-    [(regexp-match-exact? #px"M" resp-msg) (err)] ; disconnect, end game
-    [(regexp-match-exact? #px"P" resp-msg) (err)] ; disconnect, end game
+    [(regexp-match-exact? #px"M" resp-msg) (err)] ; received error - invalid message
+    [(regexp-match-exact? #px"P" resp-msg) (err)] ; received error - invalid credentials
     [(regexp-match-exact? #px"D:[1 | 2]:([A-Za-z0-9]){1,20}:([A-Za-z0-9]){1,20}:[0-8][0-4]:[0-8][0-4]:[1 | 2]" resp-msg)
      (match (regexp-split #px":" resp-msg) [(list code id name pwd move-from move-to who-moved-last) 
                                             (if (equal? client-id who-moved-last)
                                                 (begin (sleep 2) (get-remote-player-choice game-name game-pwd client-id))
                                                 (exec-request-update game-name game-pwd client-id id name pwd move-from move-to))])]
-    [else (begin (nc:connect-to-server "M" (host-param)) (err))])) ; disconnect, end game
+    [else (begin (nc:connect-to-server (string-join (list "M" client-id game-name game-pwd) ":")  (host-param)) (err))])) ; send error - invalid message 
 ; END REQUEST UPDATE
 
 ; EVENT LOOP
@@ -312,10 +312,10 @@
 
 ; HAS OTHER PLAYER JOINED?
 ; if response's credentials were correct, returns true; otherwise, kills game.
-(define (exec-other-player-joined? game-name game-pwd name pwd)
+(define (exec-other-player-joined? client-id game-name game-pwd name pwd)
   (if (and (equal? game-name name) (equal? game-pwd pwd))
       #t
-      (begin (nc:connect-to-server "P" (host-param))
+      (begin (nc:connect-to-server (string-join (list "P" client-id game-name game-pwd) ":") (host-param))
              (err))))
 
 ; queries server to see if player 2 has joined; if not, recurses until player 2 has.
@@ -330,8 +330,8 @@
     [(regexp-match-exact? #px"A" resp-msg) (begin (sleep 3) (other-player-joined? game-name game-pwd client-id))]
     [(regexp-match-exact? #px"H:1:([A-Za-z0-9]){1,20}:([A-Za-z0-9]){1,20}:([A-Z]){32}:([O | P]){32}" resp-msg)
      (match (regexp-split #px":" resp-msg) [(list code id name pwd msg1 msg2) 
-                                            (exec-other-player-joined? game-name game-pwd name pwd)])]
-    [else (begin (nc:connect-to-server "M" (host-param)) (err))])) ; send error: invalid code or message
+                                            (exec-other-player-joined? client-id game-name game-pwd name pwd)])]
+    [else (begin (nc:connect-to-server (string-join (list "M" client-id game-name game-pwd) ":") (host-param)) (err))])) ; send error: invalid code or message
 ; END JOINED?
 
 ; REMOTE PLAYER CREATE GAME
@@ -339,7 +339,7 @@
 (define (exec-create-game game-name game-pwd client-id id name pwd)
   (if (and (equal? name game-name) (equal? pwd game-pwd) (equal? id client-id))
       #t
-      (begin (nc:connect-to-server "P" (host-param))
+      (begin (nc:connect-to-server (string-join (list "P" client-id game-name game-pwd) ":") (host-param))
              (err))))
 
 ; sends a create game message to the server; starts game if correct response, kills game otherwise.
@@ -354,7 +354,7 @@
     [(regexp-match-exact? #px"F:1:([A-Za-z0-9]){1,20}:([A-Za-z0-9]){1,20}" resp-msg)
      (match (regexp-split #px":" resp-msg) [(list code id name pwd) 
                                             (exec-create-game game-name game-pwd client-id id name pwd)])]
-    [else (begin (nc:connect-to-server "M" (host-param)) (err))])) ; error received: invalid message
+    [else (begin (nc:connect-to-server (string-join (list "M" client-id game-name game-pwd) ":") (host-param)) (err))])) ; error received: invalid message
 ; END REMOTE CREATE
 
 ; function to connect to server and begin game.
@@ -394,7 +394,7 @@
 
 ; REMOTE PLAYER JOIN GAME
 ; if server sent correct credentials, creates board from message and starts game.
-(define (exec-join-game game-name game-pwd name pwd pieces player-pieces)
+(define (exec-join-game client-id game-name game-pwd name pwd pieces player-pieces)
   (if (and (equal? name game-name) (equal? pwd game-pwd))
       (g:turn (nc:make-board pieces player-pieces) 
             "Undecided"
@@ -403,19 +403,19 @@
             r:none-role
             b:none-position
             #f)
-      (begin (nc:connect-to-server "P" (host-param))
+      (begin (nc:connect-to-server (string-join (list "P" client-id game-name game-pwd) ":") (host-param))
              (err))))
 
 ; attempts to join a game by contacting server. Returns turn struct (including board sent from server), or kills game.
 (define (join-game game-name game-pwd client-id) 
   (define resp-msg (nc:connect-to-server (string-join (list "G" client-id game-name game-pwd) ":") (host-param)))
   (cond
-    [(regexp-match-exact? #px"M" resp-msg) (err)] ; error sent: invalid message
-    [(regexp-match-exact? #px"P" resp-msg) (err)] ; error sent: invalid credentials
-    [(regexp-match-exact? #px"R" resp-msg) (err)] ; error sent: too many players
+    [(regexp-match-exact? #px"M" resp-msg) (err)] ; error received: invalid message
+    [(regexp-match-exact? #px"P" resp-msg) (err)] ; error received: invalid credentials
+    [(regexp-match-exact? #px"R" resp-msg) (err)] ; error received: too many players
     [(regexp-match-exact? #px"H:2:([A-Za-z0-9]){1,20}:([A-Za-z0-9]){1,20}:([A-Z]){32}:([O | P]){32}" resp-msg)
-     (match (regexp-split #px":" resp-msg) [(list code id name pwd pieces player-pieces) (exec-join-game game-name game-pwd name pwd pieces player-pieces)])]
-    [else (begin (nc:connect-to-server "M" (host-param)) (err))])) ; error sent: invalid message
+     (match (regexp-split #px":" resp-msg) [(list code id name pwd pieces player-pieces) (exec-join-game client-id game-name game-pwd name pwd pieces player-pieces)])]
+    [else (begin (nc:connect-to-server (string-join (list "M" client-id game-name game-pwd) ":") (host-param)) (err))])) ; send error: invalid message
 ; END REMOTE PLAYER JOIN GAME
 
 ; attempts to join a remote game, or kills game.
