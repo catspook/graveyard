@@ -7,7 +7,7 @@
 
 ** Networking Update
 
-Graveyard now allows you to play remote games. 
+This fork of [[https://github.com/thea-leake/graveyard][Thea Leake]]'s Graveyard allows you to play remote games! See Considerations section if wanting to play a single or local multiplayer game. 
 
 *** To play a remote game:
 - Download Racket and build according to the instructions below
